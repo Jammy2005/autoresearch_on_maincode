@@ -169,6 +169,21 @@ class GPTConfig:
     d_model: int
     dropout: float
 
+def precompute_rope_freqs(head_dim, max_seq_len, base=10000, device='cpu'):
+    freqs = 1.0 / (base ** (torch.arange(0, head_dim, 2, device=device).float() / head_dim))
+    t = torch.arange(max_seq_len, device=device).float()
+    freqs = torch.outer(t, freqs)  # [T, head_dim/2]
+    return torch.polar(torch.ones_like(freqs), freqs)  # complex [T, head_dim/2]
+
+def apply_rope(q, k, freqs_cis):
+    # q, k: [B, n_head, T, head_dim]
+    def rotate(x):
+        xc = x.float().reshape(*x.shape[:-1], -1, 2)
+        xc = torch.view_as_complex(xc.contiguous())  # [B, H, T, head_dim/2]
+        xc = xc * freqs_cis.unsqueeze(0).unsqueeze(0)
+        return torch.view_as_real(xc).flatten(-2).to(x.dtype)
+    return rotate(q), rotate(k)
+
 class CausalSelfAttention(nn.Module):
     def __init__(self, cfg: GPTConfig):
         super().__init__()
@@ -181,10 +196,11 @@ class CausalSelfAttention(nn.Module):
         self.dropout = cfg.dropout
         self.resid_drop = nn.Dropout(cfg.dropout)
 
-    def forward(self, x):
+    def forward(self, x, freqs_cis):
         B, T, C = x.size()
         qkv = self.qkv(x).view(B, T, 3, self.n_head, self.head_dim).transpose(1, 3)
         q, k, v = qkv[..., 0, :, :], qkv[..., 1, :, :], qkv[..., 2, :, :]
+        q, k = apply_rope(q, k, freqs_cis[:T])
         y = F.scaled_dot_product_attention(
             q, k, v,
             dropout_p=self.dropout if self.training else 0.0,
@@ -215,8 +231,8 @@ class Block(nn.Module):
         self.attn = CausalSelfAttention(cfg)
         self.mlp = MLP(cfg)
 
-    def forward(self, x):
-        x = x + self.attn(self.ln1(x))
+    def forward(self, x, freqs_cis):
+        x = x + self.attn(self.ln1(x), freqs_cis)
         x = x + self.mlp(self.ln2(x))
         return x
 
@@ -225,7 +241,6 @@ class GPT(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.token_emb = nn.Embedding(cfg.vocab_size, cfg.d_model)
-        self.pos_emb = nn.Parameter(torch.zeros(1, cfg.block_size, cfg.d_model))
         self.drop = nn.Dropout(cfg.dropout)
         self.blocks = nn.ModuleList([Block(cfg) for _ in range(cfg.n_layer)])
         self.ln_f = nn.LayerNorm(cfg.d_model)
@@ -233,6 +248,10 @@ class GPT(nn.Module):
 
         self.apply(self._init_weights)
         self.head.weight = self.token_emb.weight  # weight tying
+
+        head_dim = cfg.d_model // cfg.n_head
+        freqs = precompute_rope_freqs(head_dim, cfg.block_size)
+        self.register_buffer("freqs_cis", freqs)
 
     @staticmethod
     def _init_weights(module):
@@ -244,11 +263,9 @@ class GPT(nn.Module):
 
     def forward(self, idx, targets=None):
         B, T = idx.size()
-        tok = self.token_emb(idx)
-        pos = self.pos_emb[:, :T, :]
-        x = self.drop(tok + pos)
+        x = self.drop(self.token_emb(idx))
         for block in self.blocks:
-            x = block(x)
+            x = block(x, self.freqs_cis)
         x = self.ln_f(x)
         logits = self.head(x)
         loss = None
