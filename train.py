@@ -296,10 +296,14 @@ def main():
     log(fh, "model_info", num_params=num_params)
 
     # --- Optimizer & Scheduler ---
+    decay_params = [p for n, p in model.named_parameters()
+                    if p.requires_grad and p.dim() >= 2]
+    nodecay_params = [p for n, p in model.named_parameters()
+                      if p.requires_grad and p.dim() < 2]
     opt = torch.optim.AdamW(
-        model.parameters(),
+        [{"params": decay_params, "weight_decay": args.weight_decay},
+         {"params": nodecay_params, "weight_decay": 0.0}],
         lr=args.lr,
-        weight_decay=args.weight_decay,
         betas=args.betas,
     )
     warmup_steps = int(args.warmup_frac * max_steps)
