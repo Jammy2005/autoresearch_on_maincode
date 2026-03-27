@@ -144,15 +144,16 @@ class CausalSelfAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, cfg: GPTConfig):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(cfg.d_model, 4 * cfg.d_model),
-            nn.GELU(),
-            nn.Linear(4 * cfg.d_model, cfg.d_model),
-            nn.Dropout(cfg.dropout),
-        )
-        self.net[2].RESIDUAL_SCALE_INIT = 0.02 / math.sqrt(2 * cfg.n_layer)
+        # SwiGLU: hidden = 8/3 * d_model rounded to multiple of 64
+        hidden = round(cfg.d_model * 8 / 3 / 64) * 64
+        self.gate = nn.Linear(cfg.d_model, hidden, bias=False)
+        self.up   = nn.Linear(cfg.d_model, hidden, bias=False)
+        self.down = nn.Linear(hidden, cfg.d_model, bias=False)
+        self.drop = nn.Dropout(cfg.dropout)
+        self.down.RESIDUAL_SCALE_INIT = 0.02 / math.sqrt(2 * cfg.n_layer)
+
     def forward(self, x):
-        return self.net(x)
+        return self.drop(self.down(F.silu(self.gate(x)) * self.up(x)))
 
 class Block(nn.Module):
     def __init__(self, cfg: GPTConfig):
