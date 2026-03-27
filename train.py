@@ -13,6 +13,58 @@ from torch.nn import functional as F
 from datasets import load_dataset
 from tqdm import tqdm
 
+
+def _zeropower_via_newtonschulz5(G, steps=5):
+    """Orthogonalize G using Newton-Schulz iteration."""
+    assert G.ndim == 2
+    a, b, c = 3.4445, -4.7750, 2.0315
+    X = G.float()
+    X = X / (X.norm() + 1e-7)
+    if X.size(0) > X.size(1):
+        X = X.T
+    for _ in range(steps):
+        A = X @ X.T
+        B = b * A + c * (A @ A)
+        X = a * X + B @ X
+    if G.size(0) > G.size(1):
+        X = X.T
+    return X.to(G.dtype)
+
+
+class Muon(torch.optim.Optimizer):
+    """Muon: Momentum + orthogonalized update for 2D weights; SGD momentum for rest."""
+    def __init__(self, params, lr=0.02, momentum=0.95,
+                 adamw_params=None, adamw_lr=3e-3, adamw_wd=0.0, adamw_betas=(0.9, 0.95)):
+        defaults = dict(lr=lr, momentum=momentum)
+        super().__init__(params, defaults)
+        # AdamW sub-optimizer for 1D params and embeddings
+        if adamw_params is not None:
+            self.adamw = torch.optim.AdamW(
+                adamw_params, lr=adamw_lr, weight_decay=adamw_wd, betas=adamw_betas
+            )
+        else:
+            self.adamw = None
+
+    @torch.no_grad()
+    def step(self):
+        if self.adamw is not None:
+            self.adamw.step()
+        for group in self.param_groups:
+            for p in group['params']:
+                if p.grad is None:
+                    continue
+                state = self.state[p]
+                if 'buf' not in state:
+                    state['buf'] = torch.zeros_like(p)
+                buf = state['buf']
+                buf.mul_(group['momentum']).add_(p.grad)
+                if p.ndim == 2:
+                    update = _zeropower_via_newtonschulz5(buf)
+                    update *= max(p.size(0), p.size(1)) ** 0.5
+                else:
+                    update = buf
+                p.add_(update, alpha=-group['lr'])
+
 # ---------------------------------------------------------------------------
 # Hyperparameters — agent modifies these freely
 # ---------------------------------------------------------------------------
@@ -297,15 +349,17 @@ def main():
     log(fh, "model_info", num_params=num_params)
 
     # --- Optimizer & Scheduler ---
-    decay_params = [p for n, p in model.named_parameters()
-                    if p.requires_grad and p.dim() >= 2]
-    nodecay_params = [p for n, p in model.named_parameters()
-                      if p.requires_grad and p.dim() < 2]
-    opt = torch.optim.AdamW(
-        [{"params": decay_params, "weight_decay": args.weight_decay},
-         {"params": nodecay_params, "weight_decay": 0.0}],
-        lr=args.lr,
-        betas=args.betas,
+    # Muon for 2D weight matrices; AdamW inside Muon for 1D params & embeddings
+    muon_params = [p for n, p in model.named_parameters()
+                   if p.requires_grad and p.dim() == 2
+                   and 'token_emb' not in n and 'pos_emb' not in n]
+    adamw_params = [p for n, p in model.named_parameters()
+                    if p.requires_grad and (p.dim() < 2
+                    or 'token_emb' in n or 'pos_emb' in n)]
+    opt = Muon(
+        muon_params, lr=args.lr * 0.67, momentum=0.95,
+        adamw_params=[{"params": adamw_params, "weight_decay": 0.0}],
+        adamw_lr=args.lr, adamw_wd=0.0, adamw_betas=args.betas,
     )
     warmup_steps = int(args.warmup_frac * max_steps)
     min_lr_ratio = 1.0  # constant LR after warmup
@@ -335,6 +389,8 @@ def main():
             )
             _, loss = model(xb, yb)
             opt.zero_grad(set_to_none=True)
+            if opt.adamw is not None:
+                opt.adamw.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             opt.step()
