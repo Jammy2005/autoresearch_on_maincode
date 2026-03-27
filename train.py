@@ -308,7 +308,7 @@ def main():
         betas=args.betas,
     )
     warmup_steps = int(args.warmup_frac * max_steps)
-    min_lr_ratio = 0.3  # floor at 9e-4 / 3e-3
+    min_lr_ratio = 0.4
     def lr_lambda(step):
         if step < warmup_steps:
             return step / max(1, warmup_steps)
