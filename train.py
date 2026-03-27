@@ -171,7 +171,7 @@ class GPTConfig:
     d_model: int
     dropout: float
 
-def precompute_rope_freqs(head_dim, max_seq_len, base=500, device='cpu'):
+def precompute_rope_freqs(head_dim, max_seq_len, base=200, device='cpu'):
     freqs = 1.0 / (base ** (torch.arange(0, head_dim, 2, device=device).float() / head_dim))
     t = torch.arange(max_seq_len, device=device).float()
     freqs = torch.outer(t, freqs)  # [T, head_dim/2]
