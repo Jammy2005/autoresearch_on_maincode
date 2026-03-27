@@ -115,7 +115,7 @@ LOOP FOREVER once started:
 1. Check current git state (branch, last commit)
 2. Pick an experiment idea — change `train.py`
 3. `git commit -m "short description"`
-4. Run: `python train.py > run.log 2>&1`
+4. Run: `uv run train.py > run.log 2>&1`
 5. Check results: `grep "^val_loss:\|^peak_vram_mb:" run.log`
 6. If empty → crashed. Read `tail -n 50 run.log`, attempt fix if trivial, otherwise log as crash and move on
 7. Log to `results.tsv`
