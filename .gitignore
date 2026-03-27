@@ -1,0 +1,38 @@
+# Data — downloaded by prepare.py, not needed in git
+data/
+
+# Logs — generated each run, not needed in git
+logs/
+
+# Autoresearch results — intentionally untracked (per program.md)
+results.tsv
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment — created by uv
+.venv/
+
+# uv
+.uv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Run log — generated each experiment by the agent
+run.log
