@@ -33,7 +33,7 @@ class Hyperparameters:
     dropout: float = 0.1
 
     # Training
-    batch_size: int = 64
+    batch_size: int = 256
     lr: float = 3e-3
     weight_decay: float = 0.1
     betas: tuple = (0.9, 0.95)
