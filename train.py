@@ -228,15 +228,13 @@ class MLP(nn.Module):
 class Block(nn.Module):
     def __init__(self, cfg: GPTConfig):
         super().__init__()
-        self.ln1 = nn.LayerNorm(cfg.d_model)
-        self.ln2 = nn.LayerNorm(cfg.d_model)
+        self.ln = nn.LayerNorm(cfg.d_model)
         self.attn = CausalSelfAttention(cfg)
         self.mlp = MLP(cfg)
 
     def forward(self, x, freqs_cis):
-        x = x + self.attn(self.ln1(x), freqs_cis)
-        x = x + self.mlp(self.ln2(x))
-        return x
+        ln_out = self.ln(x)
+        return x + self.attn(ln_out, freqs_cis) + self.mlp(ln_out)
 
 class GPT(nn.Module):
     def __init__(self, cfg: GPTConfig):
