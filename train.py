@@ -34,8 +34,10 @@ class Hyperparameters:
 
     # Training
     batch_size: int = 64
-    lr: float = 6e-3
-    weight_decay: float = 0.0
+    lr: float = 3e-3
+    weight_decay: float = 0.1
+    betas: tuple = (0.9, 0.95)
+    warmup_frac: float = 0.05
     grad_clip: float = 1.0
     evals_per_epoch: int = 3
 
@@ -297,9 +299,16 @@ def main():
     opt = torch.optim.AdamW(
         model.parameters(),
         lr=args.lr,
-        weight_decay=args.weight_decay
+        weight_decay=args.weight_decay,
+        betas=args.betas,
     )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=max_steps)
+    warmup_steps = int(args.warmup_frac * max_steps)
+    def lr_lambda(step):
+        if step < warmup_steps:
+            return step / max(1, warmup_steps)
+        progress = (step - warmup_steps) / max(1, max_steps - warmup_steps)
+        return 0.5 * (1.0 + math.cos(math.pi * progress))
+    scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda)
 
     # --- Training loop ---
     ptr = 0
