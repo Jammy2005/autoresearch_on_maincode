@@ -144,8 +144,8 @@ class CausalSelfAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, cfg: GPTConfig):
         super().__init__()
-        # SwiGLU: hidden = 8/3 * d_model rounded to multiple of 64
-        hidden = round(cfg.d_model * 8 / 3 / 64) * 64
+        # SwiGLU with 4*d_model hidden (larger capacity)
+        hidden = 4 * cfg.d_model
         self.gate = nn.Linear(cfg.d_model, hidden, bias=False)
         self.up   = nn.Linear(cfg.d_model, hidden, bias=False)
         self.down = nn.Linear(hidden, cfg.d_model, bias=False)
