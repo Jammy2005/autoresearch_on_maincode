@@ -357,7 +357,7 @@ def main():
                     if p.requires_grad and (p.dim() < 2
                     or 'token_emb' in n or 'pos_emb' in n)]
     opt = Muon(
-        muon_params, lr=args.lr * 0.67, momentum=0.92,
+        muon_params, lr=args.lr * 0.67, momentum=0.93,
         adamw_params=[{"params": adamw_params, "weight_decay": 0.0}],
         adamw_lr=args.lr, adamw_wd=0.0, adamw_betas=args.betas,
     )
