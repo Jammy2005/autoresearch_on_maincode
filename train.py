@@ -404,7 +404,8 @@ def main():
             xb, yb, ptr = get_batch(
                 train_ids, ptr, args.block_size, args.batch_size, device
             )
-            _, loss = model(xb, yb)
+            with torch.autocast(device_type=device, dtype=torch.bfloat16):
+                _, loss = model(xb, yb)
             opt.zero_grad(set_to_none=True)
             if opt.adamw is not None:
                 opt.adamw.zero_grad(set_to_none=True)
