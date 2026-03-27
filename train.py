@@ -303,11 +303,13 @@ def main():
         betas=args.betas,
     )
     warmup_steps = int(args.warmup_frac * max_steps)
+    min_lr_ratio = 0.033  # floor at 1e-4 / 3e-3
     def lr_lambda(step):
         if step < warmup_steps:
             return step / max(1, warmup_steps)
         progress = (step - warmup_steps) / max(1, max_steps - warmup_steps)
-        return 0.5 * (1.0 + math.cos(math.pi * progress))
+        cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+        return min_lr_ratio + (1.0 - min_lr_ratio) * cosine
     scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda)
 
     # --- Training loop ---
