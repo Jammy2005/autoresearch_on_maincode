@@ -58,11 +58,13 @@ class Muon(torch.optim.Optimizer):
                     state['buf'] = torch.zeros_like(p)
                 buf = state['buf']
                 buf.mul_(group['momentum']).add_(p.grad)
+                # Nesterov: use g + momentum * v as update direction
+                nesterov = p.grad + group['momentum'] * buf
                 if p.ndim == 2:
-                    update = _zeropower_via_newtonschulz5(buf)
+                    update = _zeropower_via_newtonschulz5(nesterov)
                     update *= max(p.size(0), p.size(1)) ** 0.5
                 else:
-                    update = buf
+                    update = nesterov
                 p.add_(update, alpha=-group['lr'])
 
 # ---------------------------------------------------------------------------
