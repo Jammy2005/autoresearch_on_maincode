@@ -317,6 +317,10 @@ def main():
         return min_lr_ratio + (1.0 - min_lr_ratio) * cosine
     scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda)
 
+    # --- SWA setup: average weights over last 20% of training ---
+    swa_start = int(0.80 * max_steps)
+    swa_model = torch.optim.swa_utils.AveragedModel(model)
+
     # --- Training loop ---
     ptr = 0
     step = 0
@@ -335,6 +339,8 @@ def main():
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             opt.step()
             scheduler.step()
+            if step >= swa_start:
+                swa_model.update_parameters(model)
 
             log(fh, "train_step",
                 step=step, max_steps=max_steps,
@@ -352,6 +358,14 @@ def main():
                     step=step, max_steps=max_steps,
                     val_loss=round(val_loss, 6),
                     elapsed=round(time.time() - t0, 2))
+
+    # --- SWA final evaluation ---
+    swa_val_loss = evaluate(
+        swa_model.module, val_ids, val_text,
+        args.block_size, args.batch_size, device
+    )
+    if swa_val_loss < best_val_loss:
+        best_val_loss = swa_val_loss
 
     # --- Final summary (agent greps these lines) ---
     total_time = time.time() - t0
