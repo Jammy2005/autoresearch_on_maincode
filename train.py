@@ -308,7 +308,7 @@ def main():
         betas=args.betas,
     )
     warmup_steps = int(args.warmup_frac * max_steps)
-    min_lr_ratio = 0.6
+    min_lr_ratio = 1.0  # constant LR after warmup
     def lr_lambda(step):
         if step < warmup_steps:
             return step / max(1, warmup_steps)
