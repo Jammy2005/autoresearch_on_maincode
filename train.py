@@ -79,7 +79,7 @@ class Hyperparameters:
 
     # Model architecture
     block_size: int = 128
-    n_layer: int = 6
+    n_layer: int = 7
     n_head: int = 32
     d_model: int = 512
     dropout: float = 0.1
