@@ -125,6 +125,7 @@ class CausalSelfAttention(nn.Module):
         self.n_head = cfg.n_head
         self.qkv = nn.Linear(cfg.d_model, 3 * cfg.d_model)
         self.proj = nn.Linear(cfg.d_model, cfg.d_model)
+        self.proj.RESIDUAL_SCALE_INIT = 0.02 / math.sqrt(2 * cfg.n_layer)
         self.attn_drop = nn.Dropout(cfg.dropout)
         self.resid_drop = nn.Dropout(cfg.dropout)
         self.register_buffer(
@@ -152,6 +153,7 @@ class MLP(nn.Module):
             nn.Linear(4 * cfg.d_model, cfg.d_model),
             nn.Dropout(cfg.dropout),
         )
+        self.net[2].RESIDUAL_SCALE_INIT = 0.02 / math.sqrt(2 * cfg.n_layer)
     def forward(self, x):
         return self.net(x)
 
@@ -185,7 +187,8 @@ class GPT(nn.Module):
     @staticmethod
     def _init_weights(module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
-            nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            std = getattr(module, "RESIDUAL_SCALE_INIT", 0.02)
+            nn.init.normal_(module.weight, mean=0.0, std=std)
             if isinstance(module, nn.Linear) and module.bias is not None:
                 nn.init.zeros_(module.bias)
 
