@@ -318,7 +318,7 @@ def main():
     scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda)
 
     # --- SWA setup: average weights over last 20% of training ---
-    swa_start = int(0.80 * max_steps)
+    swa_start = int(0.90 * max_steps)
     swa_model = torch.optim.swa_utils.AveragedModel(model)
 
     # --- Training loop ---
