@@ -89,7 +89,7 @@ class Hyperparameters:
 
     # Training
     batch_size: int = 256
-    lr: float = 1.5e-3
+    lr: float = 1.3e-3
     weight_decay: float = 0.05
     betas: tuple = (0.9, 0.95)
     warmup_frac: float = 0.15
