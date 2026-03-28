@@ -91,7 +91,7 @@ class Hyperparameters:
     batch_size: int = 256
     lr: float = 1.3e-3
     weight_decay: float = 0.05
-    betas: tuple = (0.9, 0.98)
+    betas: tuple = (0.9, 0.99)
     warmup_frac: float = 0.15
     grad_clip: float = 1.0
     evals_per_epoch: int = 3
