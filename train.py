@@ -92,7 +92,7 @@ class Hyperparameters:
     lr: float = 1.2e-3
     weight_decay: float = 0.05
     betas: tuple = (0.9, 0.999)
-    warmup_frac: float = 0.15
+    warmup_frac: float = 0.20
     grad_clip: float = 1.0
     evals_per_epoch: int = 3
 
