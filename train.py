@@ -232,10 +232,13 @@ class Block(nn.Module):
         self.ln = nn.LayerNorm(cfg.d_model)
         self.attn = CausalSelfAttention(cfg)
         self.mlp = MLP(cfg)
+        ls_init = 0.1
+        self.ls_attn = nn.Parameter(ls_init * torch.ones(cfg.d_model))
+        self.ls_mlp  = nn.Parameter(ls_init * torch.ones(cfg.d_model))
 
     def forward(self, x, freqs_cis):
         ln_out = self.ln(x)
-        return x + self.attn(ln_out, freqs_cis) + self.mlp(ln_out)
+        return x + self.ls_attn * self.attn(ln_out, freqs_cis) + self.ls_mlp * self.mlp(ln_out)
 
 class GPT(nn.Module):
     def __init__(self, cfg: GPTConfig):
