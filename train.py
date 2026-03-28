@@ -232,7 +232,7 @@ class Block(nn.Module):
         self.ln = nn.LayerNorm(cfg.d_model)
         self.attn = CausalSelfAttention(cfg)
         self.mlp = MLP(cfg)
-        ls_init = 0.1
+        ls_init = 0.01
         self.ls_attn = nn.Parameter(ls_init * torch.ones(cfg.d_model))
         self.ls_mlp  = nn.Parameter(ls_init * torch.ones(cfg.d_model))
 
