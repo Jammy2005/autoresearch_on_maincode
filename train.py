@@ -10,6 +10,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from torch.utils.checkpoint import checkpoint
 from datasets import load_dataset
 from tqdm import tqdm
 
@@ -265,7 +266,7 @@ class GPT(nn.Module):
         B, T = idx.size()
         x = self.drop(self.token_emb(idx))
         for block in self.blocks:
-            x = block(x, self.freqs_cis)
+            x = checkpoint(block, x, self.freqs_cis, use_reentrant=False)
         x = self.ln_f(x)
         logits = self.head(x)
         loss = None
