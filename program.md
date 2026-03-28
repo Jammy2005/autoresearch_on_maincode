@@ -119,7 +119,7 @@ LOOP FOREVER once started:
 5. Check results: `grep "^val_loss:\|^peak_vram_mb:" run.log`
 6. If empty → crashed. Read `tail -n 50 run.log`, attempt fix if trivial, otherwise log as crash and move on
 7. Log to `results.tsv`
-8. If `val_loss` improved (lower than current best) → keep the commit, advance
+8. If `val_loss` improved (lower than current best) → keep the commit, and push to git (run `git push origin autoresearch/mar27`), advance
 9. If `val_loss` is equal or worse → `git reset --hard HEAD~1` to discard
 
 ---
@@ -156,6 +156,12 @@ Start simple, go complex only if simple things are exhausted:
 - Never spend more than 2 fix attempts on a crashed run — move on.
 
 ---
+
+## NOTE LOG
+
+You can also write notes. Look for a notes.md, if found use it if not, create one.
+There you can write down your thoughts, your goals, long term short term plans and
+strageies and other things that you may want me to see mid training.
 
 ## NEVER STOP
 
